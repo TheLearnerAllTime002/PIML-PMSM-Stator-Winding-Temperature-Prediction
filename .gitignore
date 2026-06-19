@@ -38,4 +38,5 @@ Thumbs.db
 *.log
 
 .models/
-/datasets/
+/dataset/
+
