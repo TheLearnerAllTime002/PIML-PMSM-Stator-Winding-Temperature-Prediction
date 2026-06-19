@@ -1,41 +1,19 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+# Datasets
+dataset/
+*.csv
 
-# C extensions
-*.so
-
-# Distribution / packaging
-build/
-dist/
-eggs/
-*.egg-info/
-
-# Virtual environments
-venv/
-ENV/
-env/
-
-# Jupyter notebooks checkpoints
-.ipynb_checkpoints/
-
-# PyTorch model weights
+# Trained Models
 *.pth
-/models/
-/dataset/
+*.pt
+*.h5
+*.keras
+*.joblib
+*.pkl
 
-# IDE settings
-.vscode/
+# Outputs
+checkpoints/
+models/
+saved_models/
 
-# macOS
-.DS_Store
-
-# Windows
-Thumbs.db
-
-# Logs
-*.log
-
-.models/
-
+# Jupyter
+.ipynb_checkpoints/
