@@ -23,7 +23,7 @@ env/
 # PyTorch model weights
 *.pth
 /models/
-/datasets/
+/dataset/
 
 # IDE settings
 .vscode/
@@ -38,5 +38,4 @@ Thumbs.db
 *.log
 
 .models/
-/dataset/
 
