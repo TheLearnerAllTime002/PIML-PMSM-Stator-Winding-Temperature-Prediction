@@ -1,6 +1,7 @@
 # Datasets
 dataset/
 *.csv
+*.zip
 
 # Trained Models
 *.pth
