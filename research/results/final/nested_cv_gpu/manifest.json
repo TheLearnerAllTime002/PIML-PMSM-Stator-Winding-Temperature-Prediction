@@ -1,0 +1,42 @@
+{
+  "protocol": "nested profile-grouped cross-validation",
+  "target": "pm",
+  "metric": "inner macro profile MAE; outer pooled window MAE",
+  "outer_folds": 5,
+  "inner_folds": 2,
+  "outer_seed": 2026,
+  "inner_seed_base": 7100,
+  "outer_training_seeds": [
+    0,
+    1,
+    2
+  ],
+  "neural_learning_rate_grid": [
+    0.0001,
+    0.0003
+  ],
+  "ridge_alpha_grid": [
+    0.01,
+    0.1,
+    1.0,
+    10.0,
+    100.0
+  ],
+  "weight_decay": 1e-05,
+  "epochs_max": 5,
+  "batch": 512,
+  "train_frac": 1.0,
+  "horizon": 20,
+  "history": 128,
+  "future_ambient": "recorded true ambient values",
+  "device": "cuda",
+  "torch_version": "2.5.1+cu121",
+  "cuda_name": "NVIDIA GeForce RTX 3050 6GB Laptop GPU",
+  "profile_grouping": "all contiguous runs with the same source profile label stay together",
+  "models": [
+    "persistence",
+    "ridge_direct",
+    "oc_full",
+    "direct_gru"
+  ]
+}

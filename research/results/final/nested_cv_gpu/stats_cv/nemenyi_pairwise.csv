@@ -1,0 +1,10 @@
+family,a,b,rank_diff,p_nemenyi,significant_0_05
+all,direct_gru,oc_full,0.6666666666666665,0.01293389466472239,True
+all,direct_gru,persistence,2.043478260869565,0.0,True
+all,direct_gru,ridge_direct,0.04347826086956519,0.9972602278811359,False
+all,oc_full,persistence,1.3768115942028984,2.248705444074517e-09,True
+all,oc_full,ridge_direct,0.6231884057971013,0.02369568349757134,True
+all,persistence,ridge_direct,1.9999999999999998,0.0,True
+baselines,oc_full,persistence,1.2318840579710146,1.389555137620846e-12,True
+baselines,oc_full,ridge_direct,0.2753623188405796,0.23822620741769118,False
+baselines,persistence,ridge_direct,1.5072463768115942,0.0,True

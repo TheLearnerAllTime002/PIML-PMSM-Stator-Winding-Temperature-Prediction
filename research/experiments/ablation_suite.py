@@ -143,7 +143,10 @@ def cv_splits(profile_ids, n_folds, seed=0, val_frac=0.12):
     # Multiple non-adjacent runs can share the same source profile label.
     # Their group label is stored by load_dataset and passed via module global.
     group_by_run = SOURCE_GROUP_BY_RUN
-    blocks = [ids[group_by_run == g] for g in np.unique(group_by_run)]
+    # `ids` may be an outer-training subset during nested CV, so index the
+    # source-group map by those run IDs before grouping (rather than assuming
+    # ids spans every profile in the loaded data).
+    blocks = [ids[group_by_run[ids] == g] for g in np.unique(group_by_run[ids])]
     blocks = [b for b in blocks if len(b)]
     rng.shuffle(blocks)
     folds = [[] for _ in range(n_folds)]

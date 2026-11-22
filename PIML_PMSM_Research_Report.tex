@@ -22,20 +22,17 @@ St. Thomas' College of Engineering and Technology, Kolkata}}
 This paper reports an exploratory study of permanent-magnet temperature
 prediction in a permanent-magnet synchronous motor (PMSM). The data contain
 1,330,816 measurements from 69 operating profiles. The project combines
-physics-derived features with recurrent thermal state-space models and now
-includes a modular ablation runner, profile-level statistical analysis, and
-five-fold profile-grouped comparisons. In a reduced-budget evaluation, Ridge
-direct forecasting achieved pooled 20-step MAE $=0.0944\,^{\circ}$C, compared
-with $0.1051\,^{\circ}$C for a direct GRU, $0.1056\,^{\circ}$C for a direct
-LSTM, $0.1095\,^{\circ}$C for the operating-conditioned thermal model, and
-$0.1227\,^{\circ}$C for persistence. These are preliminary screening results:
-training used 1\% of available windows for three epochs, and hyperparameter
-selection was not nested within outer cross-validation. Profile-level paired
-tests favored Ridge and the direct recurrent models, while corrected fold-level
-tests did not remain significant after multiplicity correction. The results
-therefore do not establish model superiority. The target and input assumptions
-must also be stated precisely: the target is permanent-magnet temperature, and
-the 20-step comparison uses recorded future ambient temperature.
+physics-derived features with recurrent thermal state-space models and
+profile-grouped statistical evaluation. A nested five-fold evaluation used
+all available outer-training windows and selected hyperparameters within each
+outer training partition. Direct GRU achieved the lowest pooled 20-step MAE
+($0.0921\,^{\circ}$C), followed by Ridge ($0.0943\,^{\circ}$C), the
+operating-conditioned model ($0.0967\,^{\circ}$C), and persistence
+($0.1227\,^{\circ}$C). However, Nadeau--Bengio corrected fold-level
+comparisons did not establish a statistically significant GRU improvement over
+the operating-conditioned model after Holm correction. This is a numerical
+lead, not a model-superiority claim. The target is permanent-magnet
+temperature, and the 20-step protocol uses recorded future ambient temperature.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -215,13 +212,76 @@ Persistence & 0.1227 & [0.1055, 0.1414]\\
 \end{tabular}
 \end{table}
 
-The overall Friedman test was significant ($\chi^2=118.35$, $p=1.20\times
-10^{-24}$). Paired profile-level Wilcoxon tests with Holm correction favored
-Ridge, direct GRU, and direct LSTM over the thermal reference. Nadeau--Bengio
-corrected fold tests did not remain significant after Holm correction. Given
-the limited training fraction and non-nested hyperparameter screen, these
-comparisons are hypotheses for a confirmatory run, not final evidence of
-superiority.
+The original screening results are superseded for the primary model comparison
+by the nested evaluation below. The screening table is retained as a record of
+the earlier reduced-budget experiment and must not be pooled with the nested
+results because its training budget and tuning protocol differ.
+
+\subsection{Nested Full-Window-Budget Profile-Grouped Evaluation}
+We performed five-fold outer cross-validation grouped by source profile. For
+each outer fold, two-fold grouped inner validation selected the neural learning
+rate and epoch count and Ridge regularization using macro profile MAE. Final
+neural models were refit on all available outer-training windows and repeated
+with three seeds. The maximum training budget was five epochs, batch size 512,
+history length 128 samples, and forecast horizon 20 steps. The learning-rate
+grid was $\{10^{-4},3\times10^{-4}\}$, weight decay was $10^{-5}$, and Ridge
+$\alpha$ was selected from $\{0.01,0.1,1,10,100\}$. Neural training and
+inference used an NVIDIA GeForce RTX 3050 Laptop GPU (6 GB; PyTorch
+2.5.1+cu121). Each of the 69 profiles was held out once across the outer
+folds. Recorded future ambient values were provided to the 20-step models, so
+this is an offline conditional forecast and not a test of an input-free
+deployment forecast.
+
+\begin{table}[!t]
+\centering
+\caption{Nested five-fold evaluation on 69 held-out profiles. Confidence
+intervals are 95\% profile-cluster bootstrap intervals.}
+\label{tab:nested-results}
+\scriptsize
+\begin{tabular}{lcccc}
+\toprule
+Model & MAE & 95\% CI & RMSE & Seed SD (MAE)\\
+ & ($^{\circ}$C) & ($^{\circ}$C) & ($^{\circ}$C) & ($^{\circ}$C)\\
+\midrule
+Direct GRU & 0.09212 & [0.07572, 0.11124] & 0.19519 & 0.00085\\
+Ridge direct & 0.09433 & [0.07988, 0.11050] & 0.18107 & --\\
+Operating-conditioned & 0.09673 & [0.08066, 0.11483] & 0.19873 & 0.00070\\
+Persistence & 0.12269 & [0.10600, 0.14119] & 0.22615 & --\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Direct GRU has the lowest pooled MAE, a 4.77\% reduction relative to the
+operating-conditioned reference (absolute difference $-0.00461\,^{\circ}$C).
+The profile-paired Wilcoxon--Holm comparison and profile-cluster bootstrap
+interval favor GRU (interval for the MAE difference
+$[-0.00645,-0.00292]$ $^{\circ}$C). The overall Friedman test detects
+differences among the four models ($\chi^2=112.88$, $p=2.64\times10^{-24}$),
+with mean ranks 1.81 (GRU), 1.86 (Ridge), 2.48 (operating-conditioned), and
+3.86 (persistence). These profile-level analyses describe the out-of-fold
+predictions and should not be treated as independent fold replications. In the
+more conservative Nadeau--Bengio corrected test across the five outer folds,
+GRU's mean fold MAE difference relative to the reference was
+$-0.00452\,^{\circ}$C ($t=-2.22$, Holm-adjusted $p=0.182$); Ridge was also not
+significant ($p_{\rm Holm}=0.353$). Thus the nested results do not support a
+robust superiority claim for GRU over the operating-conditioned model.
+Persistence was worse under the corrected test ($p_{\rm Holm}=0.00875$).
+
+The selected hyperparameters varied by outer fold: GRU learning rate was
+$10^{-4}$ or $3\times10^{-4}$ with four or five epochs; the
+operating-conditioned model used the same learning-rate choices and four or
+five epochs; selected Ridge $\alpha$ values were 0.01, 0.1, or 100. Exact
+fold-wise selections, inner-fold scores, seeds, run times, and split membership
+are archived with the experiment outputs. The ranking is a numerical GRU lead
+with uncertain superiority, pending more independent profiles or an external
+test set.
+
+Diebold--Mariano diagnostics were run per held-out profile after thinning
+overlapping forecast errors by 20 samples. The maximum HAC bandwidth was 46
+observations, below the admissible $n-1$ for the corresponding thinned series;
+no bandwidth-limit violations were found. Per-profile DM results varied, so
+they are secondary diagnostics and do not override the outer-fold corrected
+comparison.
 
 For the 20-step RQ4 forecast, horizon-wise MAE increases from approximately
 0.0380 $^{\circ}$C at step 1 to 0.1344 $^{\circ}$C at step 20. This monotonic
@@ -338,26 +398,29 @@ Through this work, I progressed beyond a preliminary regression experiment: I
 implemented profile-disjoint evaluation, recurrent physics-informed models,
 saved checkpoints, multi-step metrics, unseen-profile testing, explainability,
 a local demonstration, and a modular ablation/statistical evaluation pipeline.
-The current reduced-budget comparison identifies Ridge and direct recurrent
-models as important competitors to the adaptive thermal model, but the evidence
-does not establish robust superiority for any method. The study does not yet
+The nested five-fold experiment gives the direct GRU the lowest pooled
+20-step MAE (0.09212 $^{\circ}$C), ahead of Ridge (0.09433 $^{\circ}$C), the
+operating-conditioned model (0.09673 $^{\circ}$C), and persistence (0.12269
+$^{\circ}$C). Yet the corrected outer-fold test does not establish significant
+GRU superiority over the operating-conditioned model (Holm-adjusted
+$p=0.182$). The result supports GRU as the current candidate for follow-up,
+not as a demonstrated best model. The study does not yet
 support validated long-term thermal digital-twin or component-RUL claims.
 
 The main challenges were the limited physical labels, distinction between
 magnet and winding temperatures, long-horizon drift, and the initial website
 input that did not preserve thermal history. I addressed these challenges
 through profile-wise testing, physics-derived variables, bounded recurrent
-models, explicit ablation and baseline experiments, profile-level statistical
-tests, SHAP analysis, and a corrected CSV-history input mode in Streamlit. The
-next step is a nested grouped evaluation with a full training budget and a
-pre-specified forecast-input protocol.
-prediction and explainability goals while identifying the remaining work
-honestly.
+models, explicit ablation and baseline experiments, nested hyperparameter
+selection, GPU training, corrected fold-level statistical tests, SHAP
+analysis, and a corrected CSV-history input mode in Streamlit.
 
-The next research milestone is clear: make the website consume a real rolling
-128-sample history, reproduce notebook predictions exactly, and retrain a
-multi-horizon model with time-varying future operating inputs. Only after that
-comparison should a new architecture be selected for publication.
+The next research milestone is to verify exact parity between the website and
+offline pipeline using rolling 128-sample histories, then evaluate forecasts
+under a deployment-realistic future-input assumption. Follow-up work should
+include additional independent profiles, compute-budget sensitivity analysis,
+and multi-horizon errors with time-varying inputs before making a
+publication-level model ranking.
 
 \begin{thebibliography}{00}
 \bibitem{piml} G. E. Karniadakis et al., ``Physics-informed machine learning,''
