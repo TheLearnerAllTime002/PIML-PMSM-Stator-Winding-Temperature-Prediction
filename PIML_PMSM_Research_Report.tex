@@ -222,7 +222,8 @@ We performed five-fold outer cross-validation grouped by source profile. For
 each outer fold, two-fold grouped inner validation selected the neural learning
 rate and epoch count and Ridge regularization using macro profile MAE. Final
 neural models were refit on all available outer-training windows and repeated
-with three seeds. The maximum training budget was five epochs, batch size 512,
+with three seeds. Ridge fits sampled at most 200,000 outer-training windows.
+The maximum neural training budget was five epochs, batch size 512,
 history length 128 samples, and forecast horizon 20 steps. The learning-rate
 grid was $\{10^{-4},3\times10^{-4}\}$, weight decay was $10^{-5}$, and Ridge
 $\alpha$ was selected from $\{0.01,0.1,1,10,100\}$. Neural training and
@@ -250,6 +251,14 @@ Persistence & 0.12269 & [0.10600, 0.14119] & 0.22615 & --\\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/nested_cv_mae.png}
+\caption{Pooled 20-step MAE and 95\% profile-cluster bootstrap intervals in
+the nested five-fold evaluation.}
+\label{fig:nested-mae}
+\end{figure}
 
 Direct GRU has the lowest pooled MAE, a 4.77\% reduction relative to the
 operating-conditioned reference (absolute difference $-0.00461\,^{\circ}$C).
@@ -282,6 +291,20 @@ observations, below the admissible $n-1$ for the corresponding thinned series;
 no bandwidth-limit violations were found. Per-profile DM results varied, so
 they are secondary diagnostics and do not override the outer-fold corrected
 comparison.
+
+Figure~\ref{fig:nested-horizon} shows that error increases with forecast
+distance for all four methods. Window-weighted MAE ranges from 0.03556 to
+0.03679 $^{\circ}$C at step 1 and from 0.11141 (GRU) to 0.17849 (persistence)
+$^{\circ}$C at step 20. At step 20, Ridge is 0.11860 $^{\circ}$C and
+operating-conditioned is 0.12360 $^{\circ}$C.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/nested_cv_horizon.png}
+\caption{Horizon-wise MAE with 95\% profile-cluster bootstrap intervals.
+Ambient temperature values recorded during the forecast are supplied.}
+\label{fig:nested-horizon}
+\end{figure}
 
 For the 20-step RQ4 forecast, horizon-wise MAE increases from approximately
 0.0380 $^{\circ}$C at step 1 to 0.1344 $^{\circ}$C at step 20. This monotonic

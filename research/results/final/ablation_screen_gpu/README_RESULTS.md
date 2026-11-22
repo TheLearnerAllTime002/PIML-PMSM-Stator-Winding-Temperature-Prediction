@@ -1,11 +1,32 @@
-# Ablation screen results
+# 32-variant ablation screen
 
-Run: GPU, `piml_motor`, NVIDIA RTX 3050 Laptop (6 GB); 32 registry variants; paper split of 48 train / 10 validation / 11 test profiles; 3 epochs; 1% random training windows/epoch; batch 32; one seed. Best validation profile MAE checkpoint selected. AdamW weight decay 1e-5; model learning rates are in `run_log.jsonl` (oc_full 1e-3, direct_gru 1e-4, other neural variants 3e-4). Forecast history 128, horizon 20. The run also evaluated 500-step chained forecasts for trainable models and persistence, using observed future operating inputs.
+This earlier screen evaluated the 32 registered variants on a profile-grouped paper split: 48 training, 10 validation, and 11 test profiles. The run used the `piml_motor` environment and an RTX 3050 Laptop GPU (6 GB). It trained for three epochs using 1% of available windows per epoch, batch size 32, AdamW weight decay 1e-5, one seed, history 128, and a 20-step forecast. Neural checkpoint selection used validation profiles. The 500-step diagnostic fed predictions recursively while supplying recorded future operating inputs.
 
-Pooled test MAE (°C): Ridge 0.11191; direct GRU 0.12336; direct LSTM 0.12357; `oc_full` 0.12602; persistence 0.13501; linear extrapolation 0.21586. Cooling-linear scored 0.10918 but is a post-hoc screening result. Across 32 variants, no paired profile-level Wilcoxon comparison with `oc_full` survived global Holm correction. This split has 11 test profiles and only one seed; treat all variant deltas as exploratory.
+## Main 20-step test results
 
-The 500-step chained diagnostic produced MAE 1.503 °C for `oc_full`, 1.076 °C for direct GRU, and 2.424 °C for persistence. It is not comparable to the notebook's constant-forcing diagnostic and is not final long-horizon evidence.
+| Model | Pooled test MAE ( degC) |
+|---|---:|
+| Ridge direct | 0.11191 |
+| Direct GRU | 0.12336 |
+| Direct LSTM | 0.12357 |
+| `oc_full` | 0.12602 |
+| Persistence | 0.13501 |
+| Linear extrapolation | 0.21586 |
 
-Full tables, error vectors, plots, profile bootstrap, Friedman/Nemenyi, Wilcoxon-Holm/BH, DM, and HAC bandwidth fields are in `stats_paper/`; the exact training, validation histories and model parameters are in `run_log.jsonl`.
+Cooling-linear recorded 0.10918  degC in this screen. It was a post-hoc screen among many variants, however, and no paired profile-level comparison with `oc_full` survived global Holm correction across the 32 variants. It should not be interpreted as a discovered best method.
 
-Limitations: the training window fraction is 1%, training is 3 epochs, only one seed was used, Ridge alpha was fixed at 1.0, and the all-variant screen used a 1e-3 learning rate for `oc_full` even though the compact validation screen slightly favored 3e-4. Do not present these as optimized or confirmatory journal results.
+The 500-step chained diagnostic reported MAE of 1.503  degC for `oc_full`, 1.076  degC for direct GRU, and 2.424  degC for persistence. This was a single-seed, 11-profile diagnostic and is not directly comparable with the notebook's constant-forcing result or the 20-step nested evaluation.
+
+## Interpretation
+
+The screen is historical exploratory evidence, not the primary model comparison. Its reduced training budget, single seed, small holdout, and post-hoc selection make it unsuitable for a superiority claim. The later nested evaluation is reported in [`../nested_cv_gpu/README_RESULTS.md`](../nested_cv_gpu/README_RESULTS.md) and in the project study report.
+
+The screen used `oc_full` learning rate 1e-3, direct GRU 1e-4, and 3e-4 for other neural variants; Ridge alpha was fixed at 1.0. The compact validation screen later slightly favored 3e-4 for `oc_full`. These choices were not jointly nested in this all-variant run.
+
+## Reproducibility files
+
+- `profile_metrics.csv` contains profile-level summaries.
+- `stats_paper/` contains pooled tables, bootstrap intervals, paired tests, Friedman/Nemenyi results, DM diagnostics, and `forest_plot.png`.
+- `run_log.jsonl` records model settings, validation histories, parameter diagnostics, and elapsed time.
+- `long_horizon.csv` and `stats_paper/long_horizon_summary.csv` contain chained-rollout diagnostics.
+- `errors/` contains per-window errors and is excluded from version control because of its size.
