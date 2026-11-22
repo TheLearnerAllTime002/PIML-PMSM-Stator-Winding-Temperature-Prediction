@@ -1,20 +1,40 @@
-# Datasets
-dataset/
-*.csv
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+**/.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Local datasets and generated CSVs. Aggregate experiment result tables are
+# retained so they can be reviewed and versioned with the study.
+**/*.csv
+!research/results/
+!research/results/**/*.csv
 *.zip
 
-# Trained Models
+# Large window-level statistical arrays
+research/results/**/*.npz
+
+# Model and scaler artifacts
 *.pth
 *.pt
 *.h5
 *.keras
 *.joblib
 *.pkl
+*.pickle
 
-# Outputs
+# Local training outputs and caches
 checkpoints/
-models/
 saved_models/
+/models/
+Explainability/results/
 
-# Jupyter
-.ipynb_checkpoints/
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/

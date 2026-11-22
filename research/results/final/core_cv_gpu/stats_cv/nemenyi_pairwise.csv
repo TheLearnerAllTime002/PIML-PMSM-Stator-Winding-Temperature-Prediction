@@ -1,0 +1,17 @@
+family,a,b,rank_diff,p_nemenyi,significant_0_05
+all,direct_gru,direct_lstm,0.02898550724637694,0.9999697086769708,False
+all,direct_gru,oc_full,0.33333333333333304,0.7288886387417288,False
+all,direct_gru,persistence,1.4782608695652173,3.9721626321487236e-07,True
+all,direct_gru,ridge_direct,1.4202898550724639,1.3126450708611515e-06,True
+all,direct_lstm,oc_full,0.36231884057971,0.6623313113174099,False
+all,direct_lstm,persistence,1.5072463768115942,2.1479863154816314e-07,True
+all,direct_lstm,ridge_direct,1.391304347826087,2.345619773747032e-06,True
+all,oc_full,persistence,1.1449275362318843,0.00020446985427780007,True
+all,oc_full,ridge_direct,1.753623188405797,7.294318482564677e-10,True
+all,persistence,ridge_direct,2.898550724637681,1.1102230246251565e-16,True
+architecture,direct_gru,direct_lstm,0.04347826086956519,0.9646872913164111,False
+architecture,direct_gru,oc_full,0.30434782608695654,0.17369772229234903,False
+architecture,direct_lstm,oc_full,0.34782608695652173,0.10208188132743257,False
+baselines,oc_full,persistence,0.72463768115942,6.171358779716307e-05,True
+baselines,oc_full,ridge_direct,0.8550724637681162,1.526558374820297e-06,True
+baselines,persistence,ridge_direct,1.5797101449275361,0.0,True

@@ -1,45 +1,55 @@
-# PIML PMSM Stator Winding Temperature Prediction
+# PMSM temperature prediction research project
 
-This repository contains materials for predicting the stator-winding temperature of a PMSM using a physics-informed / data-driven approach. It is centered on a Jupyter notebook that demonstrates data loading, model training, and evaluation.
+This repository studies profile-disjoint prediction of PMSM temperatures using recurrent, physics-guided models. The current training target in `PIML_training.ipynb` is `pm` (permanent-magnet temperature); do not describe it as stator-winding temperature unless the target is changed.
 
-## Contents
-- `PIML_PMSM_Stator_Winding_Temperature_Prediction_FINAL_WITH_NOVELTY.ipynb` — Main analysis and training notebook.
-- `dataset/` — Input data files (example: `measures_v2.csv`).
-- `figures/` — Plots and visualization outputs.
-- `models/` — Saved model weights (`*.pth`).
+## Project layout
 
-## Quick start
-1. Create and activate a Python virtual environment (Windows example):
-
-```bash
-python -m venv venv
-venv\Scripts\activate
-pip install --upgrade pip
+```text
+dataset/                 Source dataset
+notebooks/               Exploration, training, and explainability notebooks
+research/experiments/    Ablation runner and statistical analysis
+research/results/        Study outputs, tuning logs, and diagnostics
+research/reports/        Study report and PDF manuscript copy
+PIML_PMSM_Research_Report.tex  Editable manuscript source (root)
+Explainability/          SHAP analysis and saved analysis outputs
+PMSM_EDSS/               Streamlit inference application
+figures/                 Project figures
+models/                  Saved model artifacts
 ```
 
-2. Install common dependencies:
+See [the study report](research/reports/PROJECT_STUDY_REPORT.md) for the run record, current results, limitations, and next steps. The experiment protocol and commands are in [research/README_ablation.md](research/README_ablation.md).
+
+## Data and notebooks
+
+Place the source `measures_v2.csv` at `dataset/measures_v2.csv`. Open the primary notebook with:
 
 ```bash
-pip install numpy pandas matplotlib scikit-learn jupyter torch
+jupyter notebook notebooks/PIML_training.ipynb
 ```
 
-3. Start Jupyter and open the notebook:
+The other notebook variants are retained in `notebooks/` for reference.
+
+## Reproduce a study run
+
+From the repository root with the `piml_motor` environment activated:
 
 ```bash
-jupyter notebook PIML_PMSM_Stator_Winding_Temperature_Prediction_FINAL_WITH_NOVELTY.ipynb
+python research/experiments/ablation_suite.py --data dataset/measures_v2.csv --split paper --groups all --seeds 0 1 2 --out research/results/paper
+python research/experiments/stat_tests.py --results research/results/paper --mode paper
 ```
 
-4. Run the notebook cells in order. The dataset is located in `dataset/measures_v2.csv`. Trained weights are saved in `models/` as `*.pth` files.
+For the focused five-fold evaluation, change `--split paper` to `--split cv --folds 5`. See the study report before interpreting results: the saved runs use a reduced training budget and are exploratory.
 
-## Notes
-- Large binary files (model weights) are included in `models/`; consider adding them to `.gitignore` or storing them in an external storage if you publish the repository.
-- To capture dependency versions, run `pip freeze > requirements.txt` and commit the file.
+## Local dashboard
 
-If you want, I can also generate a `requirements.txt` and a small runner script to load a saved model and run inference.
+Run the Streamlit application from the repository root:
 
-## Dataset
+```bash
+streamlit run PMSM_EDSS/app.py
+```
 
-The original dataset used for experiments can be found on Kaggle:
+It loads model artifacts from `models/` and forecasts PM temperature from a 128-row sensor history. Consult [Explainability/README.md](Explainability/README.md) for SHAP analysis details.
 
-- Electric Motor Temperature dataset: https://www.kaggle.com/datasets/wkirgsn/electric-motor-temperature/data
+## Source dataset
 
+The project uses the [Electric Motor Temperature dataset](https://www.kaggle.com/datasets/wkirgsn/electric-motor-temperature). Keep downloaded data and trained weights out of version control; `.gitignore` preserves aggregate research tables and run logs while excluding large source and window-error files.

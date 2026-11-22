@@ -1,0 +1,10 @@
+\begin{tabular}{lrrrrrr}
+\toprule
+exp & delta\_MAE & delta\_lo & delta\_hi & rel\_delta\_pct & p\_wilcoxon & p\_wilcoxon\_holm \\
+\midrule
+direct\_gru & -0.00437 & -0.008045 & -0.0007579 & -3.992 & 0.01277 & 0.02553 \\
+direct\_lstm & -0.003855 & -0.007472 & -0.0004407 & -3.522 & 0.03256 & 0.03256 \\
+ridge\_direct & -0.01507 & -0.01924 & -0.01052 & -13.76 & 7.78e-10 & 2.997e-09 \\
+persistence & 0.01322 & 0.009488 & 0.01703 & 12.08 & 7.492e-10 & 2.997e-09 \\
+\bottomrule
+\end{tabular}

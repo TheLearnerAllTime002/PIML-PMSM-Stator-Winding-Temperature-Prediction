@@ -1,0 +1,17 @@
+family,a,b,rank_diff,p_nemenyi,significant_0_05
+all,global_adaptive,linear_extrap,1.8181818181818188,0.05440834012392193,False
+all,global_adaptive,oc_full,0.18181818181818166,0.998841544177154,False
+all,global_adaptive,persistence,0.8181818181818183,0.7435206821144991,False
+all,global_adaptive,ridge_direct,1.0909090909090906,0.4856862390185658,False
+all,linear_extrap,oc_full,2.0000000000000004,0.02509605893739364,True
+all,linear_extrap,persistence,1.0000000000000004,0.5734185660058966,False
+all,linear_extrap,ridge_direct,2.909090909090909,0.0001553901377121525,True
+all,oc_full,persistence,1.0,0.5734185660058972,False
+all,oc_full,ridge_direct,0.909090909090909,0.6607769988883254,False
+all,persistence,ridge_direct,1.909090909090909,0.037350381905004615,True
+baselines,linear_extrap,oc_full,1.5454545454545454,0.025717355658010366,True
+baselines,linear_extrap,persistence,0.8181818181818179,0.4457734501856171,False
+baselines,linear_extrap,ridge_direct,2.1818181818181817,0.00042923411824402624,True
+baselines,oc_full,persistence,0.7272727272727275,0.5493624548841338,False
+baselines,oc_full,ridge_direct,0.6363636363636362,0.6546576429482385,False
+baselines,persistence,ridge_direct,1.3636363636363638,0.06350380344977125,False

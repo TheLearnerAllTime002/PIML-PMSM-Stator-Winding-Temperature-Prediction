@@ -1,450 +1,371 @@
 \documentclass[conference]{IEEEtran}
-
-\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{amsmath,amssymb}
 \usepackage{graphicx}
 \usepackage{booktabs}
-\usepackage{array}
-\usepackage{multirow}
-\usepackage{float}
-\usepackage{caption}
-\usepackage{subcaption}
-\usepackage{cite}
 \usepackage{url}
 \usepackage{hyperref}
 \usepackage{enumitem}
 \usepackage{xcolor}
-\usepackage{mathtools}
-\usepackage{tabularx}
-\usepackage{longtable}
-\usepackage{makecell}
-\usepackage{ifthen}
-
+\usepackage{subcaption}
 \hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
 
-% ---------- Figure helper: show image if present, otherwise show placeholder ----------
-\newcommand{\smartfig}[4]{%
-\begin{figure}[!t]
-\centering
-\IfFileExists{#1}{%
-    \includegraphics[width=\columnwidth]{#1}%
-}{%
-    \fbox{\parbox[c][0.22\textheight][c]{0.92\columnwidth}{\centering\textbf{Figure placeholder}\par\small Replace with image file:\\[2mm]\texttt{#1}}}%
-}
-\caption{#2}
-\label{#3}
-\end{figure}
-}
-
-% ---------- Convenience macros ----------
-\newcommand{\R}{\mathbb{R}}
-\newcommand{\T}{^\circ\mathrm{C}}
-\newcommand{\mae}{\mathrm{MAE}}
-\newcommand{\rmse}{\mathrm{RMSE}}
-\newcommand{\rtwo}{R^2}
-
-\title{Physics-Informed Machine Learning for PMSM Stator Winding Temperature Prediction:\A Two-Column Research Report with Baselines, Residual Learning, and Robustness Evaluation}
+\title{Physics-Informed Thermal State-Space Learning for\nPMSM Temperature Prediction: Results, Failure Analysis, and Deployment Readiness}
 
 \author{\IEEEauthorblockN{Arjun Mitra}
-\IEEEauthorblockA{Department of Electronics and Communication Engineering\
-St. Thomas' College of Engineering and Technology, Kolkata\
-Email: \texttt{[your email here]}}}
+\IEEEauthorblockA{Department of Electronics and Communication Engineering\\
+St. Thomas' College of Engineering and Technology, Kolkata}}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-Permanent Magnet Synchronous Motors (PMSMs) are widely deployed in electric vehicles, industrial automation, and robotics because of their efficiency and high power density. However, their safe operation critically depends on accurate stator winding temperature estimation, since thermal overload can degrade insulation, reduce efficiency, and shorten motor lifetime. Purely data-driven models often perform well on familiar operating conditions but can fail to generalize under unseen profiles or high-stress regimes.
-
-This report presents a Physics-Informed Machine Learning (PIML) framework for PMSM stator winding temperature prediction. The study compares four models: Random Forest, a conventional Deep Neural Network (DNN), a Physics-Guided DNN, and a Residual PIML model that learns the error remaining after a physics-based thermal estimate. The framework additionally includes physics-guided feature engineering, profile-based validation, stress testing under high current and high mechanical power, and uncertainty-aware analysis. On the evaluated dataset, the proposed Residual PIML achieved the best overall accuracy with MAE = 1.1719$^\circ$C, RMSE = 1.6336$^\circ$C, and $R^2$ = 0.9972, outperforming both conventional ML and standard DNN baselines. The Physics-Guided DNN also improved markedly over the DNN baseline, confirming that incorporating thermal physics into learning is beneficial for accurate and robust motor temperature prediction.
+This paper reports an exploratory study of permanent-magnet temperature
+prediction in a permanent-magnet synchronous motor (PMSM). The data contain
+1,330,816 measurements from 69 operating profiles. The project combines
+physics-derived features with recurrent thermal state-space models and now
+includes a modular ablation runner, profile-level statistical analysis, and
+five-fold profile-grouped comparisons. In a reduced-budget evaluation, Ridge
+direct forecasting achieved pooled 20-step MAE $=0.0944\,^{\circ}$C, compared
+with $0.1051\,^{\circ}$C for a direct GRU, $0.1056\,^{\circ}$C for a direct
+LSTM, $0.1095\,^{\circ}$C for the operating-conditioned thermal model, and
+$0.1227\,^{\circ}$C for persistence. These are preliminary screening results:
+training used 1\% of available windows for three epochs, and hyperparameter
+selection was not nested within outer cross-validation. Profile-level paired
+tests favored Ridge and the direct recurrent models, while corrected fold-level
+tests did not remain significant after multiplicity correction. The results
+therefore do not establish model superiority. The target and input assumptions
+must also be stated precisely: the target is permanent-magnet temperature, and
+the 20-step comparison uses recorded future ambient temperature.
 \end{abstract}
 
 \begin{IEEEkeywords}
-Physics-Informed Machine Learning, PMSM, temperature prediction, predictive maintenance, residual learning, deep learning, Random Forest, thermal modeling.
+PMSM, thermal prediction, physics-informed machine learning, LSTM,
+state-space model, residual learning, explainable AI, predictive maintenance.
 \end{IEEEkeywords}
 
 \section{Introduction}
-Permanent Magnet Synchronous Motors (PMSMs) are a core component of modern electro-mechanical systems. They are preferred in many high-performance applications because they deliver high torque density, strong efficiency, and precise controllability. Despite these advantages, PMSM operation is strongly constrained by thermal behavior. The stator winding temperature is particularly important because it directly affects insulation aging, loss mechanisms, and reliability.
+PMSMs are used in electric vehicles, industrial drives, robotics, and other
+high power-density applications. Their operating envelope is constrained by
+thermal behavior: excessive winding or magnet temperature accelerates
+insulation ageing, changes electrical parameters, and may cause protection
+events or permanent damage. A temperature estimator can support derating,
+fault prevention, and condition monitoring.
 
-The practical problem addressed in this work is simple but high value: given electrical, mechanical, and thermal sensor readings from a PMSM, estimate the stator winding temperature as accurately as possible. In a production setting, this estimate can support condition monitoring, thermal protection, fault prevention, and predictive maintenance.
+The project develops a hybrid predictor instead of relying only on a black-box
+regressor. Electrical measurements are transformed into current magnitude,
+voltage magnitude, electrical power, mechanical power, and a copper-loss
+proxy. Recurrent models then represent thermal memory and learn a bounded
+thermal response. The notebook also evaluates unseen operating profiles,
+multi-step forecasts, stability, residual magnitude, and SHAP importance.
 
-The reason this problem is non-trivial is that temperature dynamics are not purely statistical. They are governed by the interaction of electrical losses, mechanical loading, heat transfer, and thermal inertia. A model that ignores this structure may fit the training data but still behave poorly under shifted operating conditions. That is exactly why this work uses Physics-Informed Machine Learning (PIML): the model is not asked to infer everything from data alone; it is guided by known physical behavior.
+The central result is two-sided. The models achieve very strong one-step and
+20-step errors on the available data, but the experiments themselves reveal
+that a model can appear accurate while failing to reproduce slow temperature
+drift. This paper therefore reports both the successful results and the
+evidence that must be addressed before journal submission.
 
-\subsection{Research Questions}
-This report is organized around the following research questions:
-\begin{enumerate}[leftmargin=1.5em]
-    \item Can a classical machine learning model predict PMSM winding temperature accurately?
-    \item Does a deep neural network improve over classical machine learning?
-    \item Does injecting physics into the learning process improve accuracy and robustness?
-    \item Does residual physics-based modeling outperform direct temperature regression?
-    \item Can the proposed approach remain stable under unseen profiles and stress conditions?
-\end{enumerate}
+\section{Research Progress and Project Goals}
+I proceeded through the project in stages. I first established a reproducible
+baseline using the available PMSM measurements. I then added physically
+motivated features, separated the operating profiles into train, validation,
+and test groups, and evaluated classical and neural regressors. After this
+initial comparison, I developed recurrent thermal state-space models to
+represent thermal memory and multi-step temperature evolution. Finally, I
+trained an energy-constrained residual model, generated SHAP explanations, and
+connected the saved model to a Streamlit realtime demonstration.
 
-\subsection{Why This Study Matters}
-The answer to the above questions determines whether a temperature predictor is useful only on a benchmark dataset or also credible in real-world deployment. For a motor health monitoring system, the second is the only one that matters. The work therefore does not stop at a single test split. It evaluates the models under unseen profiles, high current, and high mechanical power conditions, which is necessary to demonstrate practical value rather than just benchmark performance.
+The original goals were: (i) predict motor temperature accurately, (ii) use
+physics to improve generalization, (iii) test the model on unseen operating
+profiles, (iv) explain the model decisions, (v) estimate thermal risk/RUL, and
+(vi) provide a usable demonstration. Goals (i)--(iv) have been substantially
+achieved. Goal (v) has only been achieved as a thermal-limit proxy because the
+dataset contains no run-to-failure labels. Goal (vi) has been achieved as a
+local website, but its reliable deployment requires a rolling sensor history
+rather than slider values alone.
 
-\section{Dataset and Problem Setup}
-The PMSM dataset contains electrical and thermal measurements collected under multiple operating profiles. The input variables used in this report include direct-axis current $i_d$, quadrature-axis current $i_q$, direct-axis voltage $u_d$, quadrature-axis voltage $u_q$, motor speed, torque, coolant temperature, and profile identifiers. The target variable is stator winding temperature.
-
-\subsection{Why These Variables Were Used}
-Each input carries physical meaning. Current is related to copper losses, voltage contributes to electrical power behavior, torque and speed represent loading conditions, and coolant temperature captures the cooling boundary condition. The profile identifier is not used as a direct predictive variable in the main training pipeline; instead, it is used for evaluation under profile-wise generalization tests so that model robustness can be verified on unseen operating regimes.
-
-\subsection{Feature Engineering Philosophy}
-The goal of feature engineering here is not to inflate dimensionality; it is to expose physically meaningful signals that are hidden in the raw variables. A temperature model should know not only the current components themselves, but also the magnitude of current, the approximate electrical power, and the mechanical power demand. These derived features are physically interpretable and help the model learn relationships that are otherwise difficult to discover from raw inputs alone.
-
-\section{Physics Background}
-The choice of a physics-informed model is motivated by thermal energy balance in electric machines. A simplified but useful description is that copper losses generate heat, and the resulting temperature is governed by the balance between heat generation and heat dissipation.
-
-\begin{equation}
-P_{cu} = 3I^2R
-\end{equation}
-
-where $P_{cu}$ is the copper loss, $I$ is the phase current, and $R$ is the winding resistance. In practice, the exact resistance may vary with temperature, but the fundamental quadratic dependence on current remains valid and is the reason current magnitude is such an important predictor.
-
-A generic lumped thermal model can be written as
-\begin{equation}
-C\frac{dT}{dt} = P_{loss} - h(T - T_{amb}),
-\end{equation}
-where $C$ is thermal capacitance, $h$ is a heat transfer coefficient, $T$ is winding temperature, and $T_{amb}$ is ambient or cooling temperature. This equation explains why motor temperature exhibits thermal inertia: it does not jump instantly, but evolves smoothly over time.
-
-\subsection{Why Physics Helps}
-A data-only model must infer these relationships from examples. A physics-informed model starts with the fact that current increases heating, cooling temperature influences thermal equilibrium, and temperature changes should be smooth. This makes the learning problem better conditioned and improves generalization, especially under data shifts.
-
-\section{Methodology}
-This section explains what was implemented, why it was implemented, how it was used, and what each component contributed to the final results.
-
-\subsection{Data Preprocessing}
-The first implementation step was cleaning the raw data and preparing it for training. This included handling missing values if present, separating inputs from the target, and standardizing numerical features for the neural network models.
-
-\paragraph{Why standardization was used.}
-Neural networks train more reliably when inputs are on comparable scales. Without scaling, a feature with a large numeric range can dominate the gradient updates and slow or destabilize optimization. Random Forest does not require scaling, but DNN-based models do.
-
-\paragraph{How it was used.}
-A scaler was fit on the training data only and then applied to validation and test data. This avoids information leakage. The same scaling pipeline was reused for the Physics-Guided DNN and Residual PIML models.
-
-\subsection{Physics-Guided Feature Engineering}
-Several physically meaningful features were derived from the raw signals.
-
-\begin{equation}
-I_{mag} = \sqrt{i_d^2 + i_q^2}
-\end{equation}
-
-\paragraph{Why it was used.}
-Current magnitude is more informative than individual current axes for heating because copper loss is driven by current amplitude.
-
-\paragraph{How it was used.}
-This feature was included in the analysis and was also useful for interpreting high-current stress behavior.
-
-\begin{equation}
-V_{mag} = \sqrt{u_d^2 + u_q^2}
-\end{equation}
-
-\paragraph{Why it was used.}
-Voltage magnitude is a compact representation of the electrical operating point.
-
-\paragraph{How it was used.}
-It was used as an auxiliary derived feature to reflect electrical activity more directly than the axis-wise voltages alone.
-
-\begin{equation}
-P_{elec} = I_{mag}V_{mag}
-\end{equation}
-
-\paragraph{Why it was used.}
-Electrical power is closely related to heat generation.
-
-\paragraph{How it was used.}
-This feature improves the physical interpretability of the input space.
-
-\begin{equation}
-P_{mech} = \tau\,\omega
-\end{equation}
-
-where $\tau$ is torque and $\omega$ is motor speed.
-
-\paragraph{Why it was used.}
-Mechanical power captures the load condition of the motor, which affects thermal loading.
-
-\paragraph{How it was used.}
-This feature becomes especially meaningful in the stress tests, where the model is evaluated under high mechanical power.
-
-\subsection{Baseline Model 1: Random Forest}
-Random Forest was used as a strong classical machine learning baseline.
-
-\paragraph{Why it was selected.}
-For tabular regression problems with mixed nonlinear interactions, Random Forest is a reliable benchmark. It is robust, easy to train, and can capture nonlinearities without heavy tuning.
-
-\paragraph{How it was used.}
-The model was trained on the processed input features using a standard ensemble-regression setup. Because tree-based methods do not require feature scaling, the baseline is relatively simple but powerful.
-
-\paragraph{What it showed.}
-The Random Forest performed well with MAE = 1.6032$^\circ$C and $R^2$ = 0.9942, demonstrating that the dataset contains learnable nonlinear structure even without physics constraints.
-
-\subsection{Baseline Model 2: Conventional DNN}
-A fully connected deep neural network was trained directly on the input features.
-
-\paragraph{Why it was selected.}
-A DNN is a flexible function approximator that can model complex interactions if the data and training process are suitable.
-
-\paragraph{How it was used.}
-The network was trained using standard regression loss on scaled inputs.
-
-\paragraph{What it showed.}
-The DNN baseline performed poorly relative to Random Forest in this implementation, with MAE = 4.7391$^\circ$C and $R^2$ = 0.9668. This result is important because it shows that a purely data-driven neural network is not automatically better than a classical ensemble for structured thermal data.
-
-\subsection{Model 3: Physics-Guided DNN}
-The Physics-Guided DNN is the first physics-aware model in the pipeline.
-
-\paragraph{Why it was selected.}
-The purpose is to inject domain knowledge into the optimization process so that the network is not free to learn physically unreasonable mappings.
-
-\paragraph{How it was used.}
-The model was trained with a combined loss function:
-\begin{equation}
-L = L_{MSE} + \lambda L_{physics},
-\end{equation}
-where $L_{MSE}$ penalizes prediction error and $L_{physics}$ penalizes physically inconsistent behavior.
-
-\paragraph{What it showed.}
-The Physics-Guided DNN achieved MAE = 1.2468$^\circ$C, RMSE = 1.6021$^\circ$C, and $R^2$ = 0.9973. This is the first strong proof that physics improves prediction quality.
-
-\subsection{Model 4: Residual PIML}
-Residual PIML is the main novelty of this work.
-
-\paragraph{Why it was selected.}
-Rather than forcing a neural network to learn the entire temperature mapping from scratch, residual learning decomposes the problem into a physics estimate plus a learned correction term.
-
-\paragraph{How it was used.}
-The final prediction is written as
-\begin{equation}
-T_{pred} = T_{physics} + T_{residual}.
-\end{equation}
-The term $T_{physics}$ gives a coarse thermal estimate based on known domain relationships, while the neural network learns only the remaining error.
-
-\paragraph{Why this is a better formulation.}
-This reduces the learning burden on the network, improves interpretability, and typically improves generalization because the network learns a residual rather than the full state.
-
-\paragraph{What it showed.}
-Residual PIML achieved the best MAE of 1.1719$^\circ$C and the best overall balance of accuracy and robustness. This is the strongest evidence that physics-guided residual learning is the most effective configuration in the project.
-
-\section{Evaluation Protocol}
-The evaluation was not limited to a random test split. A strong report needs to answer whether the model is genuinely useful under new conditions.
-
-\subsection{Standard Hold-Out Evaluation}
-The first test was a conventional train-validation-test split. This allows direct comparison between models using the same data partition.
-
-\paragraph{Why it was used.}
-It is the most basic and widely understood evaluation protocol.
-
-\paragraph{How it was used.}
-All models were tested on the same unseen test set, and performance was measured using MAE, RMSE, and $R^2$.
-
-\subsection{Profile-Wise Generalization}
-The dataset contains multiple operating profiles. A profile-wise test was used to check whether the models generalize to unseen motor regimes.
-
-\paragraph{Why it was used.}
-Random splits can overestimate performance because samples from the same operating regime may appear in train and test sets. Profile-wise evaluation is stricter and more realistic.
-
-\paragraph{How it was used.}
-The model was evaluated on selected profiles separately, and profile-wise MAE was computed.
-
-\subsection{Stress Testing}
-Two stress regimes were studied: high current and high mechanical power.
-
-\paragraph{Why it was used.}
-Thermal failures are most likely under high load. A useful temperature predictor must remain stable in these regimes.
-
-\paragraph{How it was used.}
-Subsets of the test data corresponding to high current and high mechanical power were isolated and evaluated independently.
-
-\subsection{Metrics}
-The following metrics were used throughout the report.
-
-\begin{equation}
-\mae = \frac{1}{N}\sum_{i=1}^{N}|y_i - \hat{y}_i|
-\end{equation}
-
-\begin{equation}
-\rmse = \sqrt{\frac{1}{N}\sum_{i=1}^{N}(y_i - \hat{y}_i)^2}
-\end{equation}
-
-\begin{equation}
-\rtwo = 1 - \frac{\sum_i (y_i - \hat{y}_i)^2}{\sum_i (y_i - \bar{y})^2}
-\end{equation}
-
-MAE measures average absolute deviation, RMSE penalizes large errors more strongly, and $R^2$ measures how much variance is explained by the model.
-
-\section{Main Results}
-\subsection{Overall Comparison}
 \begin{table}[!t]
 \centering
-\caption{Overall Model Performance}
-\label{tab:overall_results}
+\caption{Project challenges and how they were addressed.}
+\label{tab:challenges}
+\scriptsize
+\begin{tabular}{p{0.26\columnwidth}p{0.65\columnwidth}}
+\toprule
+Challenge & Response and current status\\
+\midrule
+Raw variables did not directly expose thermal mechanisms & I derived current magnitude, voltage magnitude, electrical power, mechanical power, and copper-loss proxy features.\\
+Random row splits could leak operating-profile information & I split by profile identifier, producing disjoint train, validation, and test profiles.\\
+Plain neural regression was unstable or weaker than expected & I introduced recurrent encoders, bounded thermal parameters, smoothness terms, and physics-guided state updates.\\
+Long rollouts drifted from measured temperature & I tested 20-step and 500-step forecasts and identified constant future forcing and saturated cooling as limitations.\\
+The first website input did not match training & I changed the Streamlit app to accept the last 128 real CSV rows and retained sliders only as a labelled demo mode.\\
+No component failure labels were available & I restricted the RUL result to a clearly labelled thermal-limit horizon proxy.\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+This progression was important because each new model was motivated by a
+specific observed problem. I did not treat a high $R^2$ value as sufficient
+evidence of success; I also inspected horizon-wise error, profile
+generalization, trajectory stability, residual magnitude, and input-interface
+consistency.
+
+\section{Data and Preprocessing}
+The source file is the electric-motor measurement dataset used by the notebook.
+It contains 1,330,816 rows, 69 profile identifiers, electrical variables,
+mechanical variables, coolant and ambient temperatures, and four temperature
+channels. The current recurrent pipeline predicts the permanent-magnet
+temperature, denoted by $T_{pm}$, not the column named
+\texttt{stator\_winding}. This distinction must be corrected in the title,
+figures, and claims if the paper is intended to predict winding temperature.
+
+The notebook splits by profile rather than randomly by row. The reported split
+contains 48 training profiles, 10 validation profiles, and 11 test profiles.
+The input order stored in the saved scaler and checkpoints is
+\begin{equation}
+ [u_q,\;coolant,\;u_d,\;speed,\;i_d,\;i_q,\;\tau,\;ambient,
+ I_{mag},V_{mag},P_{elec},P_{mech},P_{cu}].
+\end{equation}
+Numerical features are standardized using a scaler fitted on the training
+profiles only. Each recurrent input is a sequence of 128 samples.
+
+The engineered quantities are
+\begin{align}
+ I_{mag} &= \sqrt{i_d^2+i_q^2},\\
+ V_{mag} &= \sqrt{u_d^2+u_q^2},\\
+ P_{elec} &= u_di_d+u_qi_q,\\
+ \omega &= 2\pi\,speed/60,\\
+ P_{mech} &= \tau\omega,\\
+ P_{cu} &= 0.05I_{mag}^2.
+\end{align}
+The coefficient $0.05$ is an assumed resistance proxy rather than a measured
+temperature-dependent winding resistance; this is a limitation of the
+physics interpretation.
+
+\section{Models}
+\subsection{State-Space Thermal Models}
+The notebook first trains fixed, adaptive, stable, and operating-condition
+thermal state-space models. Their update equations have the general form
+\begin{equation}
+ T_{k+1}=T_k+\alpha\left(H_k-\beta(T_k-T_{a,k})\right),
+\end{equation}
+where $H_k$ is a learned heating signal, $T_a$ is ambient temperature, and
+$\alpha$ and $\beta$ are learned bounded coefficients. The adaptive model
+uses a two-layer LSTM encoder and predicts thermal parameters from its latent
+state.
+
+\subsection{Energy-Constrained Residual Model}
+The RQ4 model combines a recurrent thermal prediction with an energy-residual
+correction. The correction is bounded to prevent numerical explosion. The
+training objective includes temperature error, trajectory-difference error,
+smoothness regularization, and residual regularization. The saved
+\texttt{rq4\_v2\_best.pth} checkpoint is an LSTM-based 20-step model. Its
+reported validation result is not better than the adaptive baseline, despite
+the additional residual pathway.
+
+\section{Evaluation Metrics}
+The study uses mean absolute error, root mean squared error, and coefficient of
+determination:
+\begin{align}
+ MAE &= N^{-1}\sum_i|y_i-\hat y_i|,\\
+ RMSE &= \sqrt{N^{-1}\sum_i(y_i-\hat y_i)^2},\\
+ R^2 &= 1-\frac{\sum_i(y_i-\hat y_i)^2}{\sum_i(y_i-\bar y)^2}.
+\end{align}
+Metrics are reported in degrees Celsius for temperature prediction.
+
+\section{Results}
+\begin{table}[!t]
+\centering
+\caption{Main results reported by the training notebook.}
+\label{tab:results}
 \begin{tabular}{lccc}
 \toprule
-Model & MAE ($^\circ$C) & RMSE ($^\circ$C) & $R^2$ \\
+Model/evaluation & MAE & RMSE & $R^2$\\
 \midrule
-Random Forest & 1.6032 & 2.3503 & 0.9942 \\
-DNN & 4.7391 & 5.6513 & 0.9668 \\
-Physics-Guided DNN & 1.2468 & 1.6021 & 0.9973 \\
-Residual PIML & \textbf{1.1719} & \textbf{1.6336} & 0.9972 \\
+Fixed, one-step test & 0.0860 & 0.1312 & 0.99996\\
+Adaptive, one-step test & 0.0396 & 0.0914 & 0.99998\\
+Stable, 20-step validation & 0.1046 & 0.2037 & 0.99984\\
+Operating-conditioned, 20-step & 0.1067 & 0.2048 & 0.99984\\
+RQ4 residual, 20-step validation & 0.1047 & 0.2034 & 0.99985\\
+Adaptive, unseen profiles & 0.1148 & 0.2466 & 0.99985\\
 \bottomrule
 \end{tabular}
-\end{table*}
+\end{table}
 
-\paragraph{Interpretation.}
-Random Forest is a strong benchmark, but the Physics-Guided DNN improves over it by learning with physical constraints. Residual PIML achieves the lowest MAE, which means it is the most accurate on average.
+The notebook table above combines experiments with different splits and
+protocols, so it is retained as a record of the original notebook results,
+not as a direct model ranking. In addition, the notebook's multi-step
+unseen-profile persistence calculation repeats the first future target value,
+not the temperature at the forecast origin. Its reported 8.66\% improvement
+must not be used until recomputed with a standard forecast-origin persistence
+baseline.
 
-\paragraph{Why the DNN baseline is important.}
-The poor performance of the plain DNN is not a weakness in the report; it is a useful scientific finding. It shows that a neural network without physics guidance is not enough for this problem and that the improvement from PIML is real, not incidental.
-
-\subsection{Relative Improvement}
-\begin{table*}[!t]
+\begin{table}[!t]
 \centering
-\caption{Relative Improvement of Physics-Informed Models}
-\label{tab:improvement}
-\begin{tabular}{lcccc}
+\caption{Exploratory five-fold profile-grouped evaluation (reduced training budget).}
+\label{tab:screening_cv}
+\begin{tabular}{lcc}
 \toprule
-Model & MAE vs RF (\%) & MAE vs DNN (\%) & RMSE vs RF (\%) & RMSE vs DNN (\%) \\
+Model & Pooled 20-step MAE ($^{\circ}$C) & 95\% profile bootstrap CI\\
 \midrule
-Physics-Guided DNN & 22.23 & 73.69 & 31.83 & 71.65 \\
-Residual PIML & 26.90 & 75.27 & 30.49 & 71.09 \\
+Ridge direct & 0.0944 & [0.0803, 0.1101]\\
+Direct GRU & 0.1051 & [0.0898, 0.1221]\\
+Direct LSTM & 0.1056 & [0.0903, 0.1231]\\
+Operating-conditioned thermal & 0.1095 & [0.0944, 0.1272]\\
+Persistence & 0.1227 & [0.1055, 0.1414]\\
 \bottomrule
 \end{tabular}
-\end{table*}
+\end{table}
 
-These percentages make the novelty visible. Compared to the Random Forest baseline, the Residual PIML reduces MAE by nearly 27\%, and compared to the DNN baseline, it reduces MAE by more than 75\%.
+The overall Friedman test was significant ($\chi^2=118.35$, $p=1.20\times
+10^{-24}$). Paired profile-level Wilcoxon tests with Holm correction favored
+Ridge, direct GRU, and direct LSTM over the thermal reference. Nadeau--Bengio
+corrected fold tests did not remain significant after Holm correction. Given
+the limited training fraction and non-nested hyperparameter screen, these
+comparisons are hypotheses for a confirmatory run, not final evidence of
+superiority.
 
-\subsection{Why These Improvements Matter}
-The absolute error values are already small, but in thermal management even a one-degree reduction can matter because temperature thresholds are safety-critical. A more accurate predictor supports earlier warning, better protection, and more reliable deployment.
+For the 20-step RQ4 forecast, horizon-wise MAE increases from approximately
+0.0380 $^{\circ}$C at step 1 to 0.1344 $^{\circ}$C at step 20. This monotonic
+increase is expected in recursive thermal forecasting and should be shown in
+the paper rather than only the aggregate $R^2$.
 
-\section{Profile-Wise Analysis}
-This section is essential because it proves the model is not only good on the global test set.
-
-\begin{table*}[!t]
-\centering
-\caption{Profile-Wise MAE on Selected Operating Profiles}
-\label{tab:profile_results}
-\scriptsize
-\begin{tabular}{c r c c c c}
-\toprule
-Profile ID & Samples & RF MAE & DNN MAE & PG-DNN MAE & Residual PIML MAE \\
-\midrule
-2  & 19357 & 0.6877 & 6.9005 & 1.3169 & 0.7746 \\
-6  & 40388 & 1.0903 & 4.0650 & 1.1309 & 1.1495 \\
-12 & 21942 & 0.2405 & 4.0884 & 0.7966 & 0.8490 \\
-14 & 18598 & 1.9903 & 2.5216 & 0.9302 & 1.0180 \\
-20 & 43971 & 1.4842 & 4.5346 & 1.0881 & 1.1614 \\
-26 & 16666 & 2.1834 & 7.4206 & 0.9982 & 1.1413 \\
-43 & 8443  & 1.9714 & 4.2283 & 1.4463 & 1.4862 \\
-45 & 17142 & 2.3477 & 3.7770 & 1.1455 & 0.9560 \\
-56 & 33123 & 2.5586 & 5.5050 & 1.6262 & 1.3621 \\
-59 & 7475  & 2.2290 & 5.7754 & 2.3247 & 2.4459 \\
-\bottomrule
-\end{tabular}
-\end{table*}
-
-\paragraph{How to interpret this table.}
-Some profiles are easy for all models, while others are much harder. The plain DNN fails badly on several profiles, while the physics-guided models remain much more stable. This is exactly what the report should highlight: physics improves generalization when the operating regime changes.
-
-\paragraph{Important example.}
-On profile 26, the DNN error is 7.4206$^\circ$C, while the PG-DNN error drops to 0.9982$^\circ$C. That is a dramatic improvement and a strong argument for physics-guided training.
-
-\section{Stress Test Analysis}
-\begin{table*}[!t]
-\centering
-\caption{Stress Regime Evaluation}
-\label{tab:stress_results}
-\begin{tabular}{lrrrr}
-\toprule
-Regime & Samples & RF MAE & DNN MAE & PG-DNN MAE & Residual PIML MAE \\
-\midrule
-High Current & 26720 & 2.2003 & 8.0699 & 1.4658 & 1.2983 \\
-High Mechanical Power & 26720 & 1.9948 & 8.0823 & 1.3412 & 1.1386 \\
-\bottomrule
-\end{tabular}
-\end{table*}
-
-\paragraph{Interpretation.}
-High-stress conditions are where a naive predictor can become unsafe. Here the plain DNN again performs poorly, while the residual physics-informed model remains accurate. This supports the claim that the method is more suitable for real-world motor monitoring than a pure data-only model.
-
-\section{Figures and Evidence Slots}
-The following figures should be inserted into the report as evidence for the analysis. The LaTeX source is prepared so that if the file exists, it will be included automatically; otherwise a placeholder box appears.
-
-\smartfig{figures/correlation_heatmap.png}{Correlation heatmap of all features and target. This figure is used to show physical dependence among current, torque, coolant temperature, and winding temperature.}{fig:correlation}
-
-\smartfig{figures/temperature_distribution.png}{Distribution of stator winding temperature in the dataset. This figure helps justify the regression setting and shows the target range.}{fig:temp_distribution}
-
-\smartfig{figures/model_comparison.png}{Overall comparison of Random Forest, DNN, Physics-Guided DNN, and Residual PIML.}{fig:model_comparison}
-
-\smartfig{figures/improvement_analysis.png}{Percentage improvement in MAE and RMSE achieved by the physics-informed models.}{fig:improvement}
-
-\smartfig{figures/actual_vs_predicted.png}{Actual-versus-predicted scatter plot for the proposed Residual PIML model.}{fig:actual_vs_predicted}
-
-\smartfig{figures/residual_distribution.png}{Histogram or kernel plot of prediction residuals. A centered and narrow residual distribution indicates a better model.}{fig:residual_distribution}
-
-\smartfig{figures/profile_generalization.png}{Profile-wise generalization plot showing model stability on unseen operating profiles.}{fig:profile_generalization}
-
-\smartfig{figures/stress_test_current.png}{Stress test under high current operating conditions.}{fig:stress_current}
-
-\smartfig{figures/stress_test_power.png}{Stress test under high mechanical power conditions.}{fig:stress_power}
-
-\smartfig{figures/uncertainty_band.png}{Uncertainty-aware prediction output obtained using Monte Carlo Dropout or an equivalent approach.}{fig:uncertainty}
-
-\smartfig{figures/shap_or_permutation_importance.png}{Feature importance or explainability plot demonstrating the dominant role of physical variables.}{fig:importance}
-
-\smartfig{figures/architecture_diagram.png}{High-level system architecture for the complete PIML pipeline.}{fig:architecture}
-
-\section{Explainability and Why the Model Works}
-A good research report should not stop at performance numbers. It should explain why the model behaves well. In this project, the strongest explanatory factors are current magnitude, coolant temperature, torque, and motor speed. This is physically sensible: current drives copper losses, coolant temperature changes the thermal boundary condition, and torque and speed influence load-dependent heating.
-
-If a feature importance method such as SHAP is too slow in a local environment, permutation importance can be used instead. The point of the explainability section is to verify that the model is learning physically meaningful relationships rather than arbitrary correlations.
-
-\section{Novelty}
-The novelty of this work is not simply that a neural network was trained on PMSM data. The novelty lies in the way the problem is formulated and tested.
-
+\section{What Has Been Achieved}
+The project has achieved the following research components:
 \begin{enumerate}[leftmargin=1.5em]
-    \item \textbf{Physics-guided feature engineering:} current magnitude, voltage magnitude, electrical power, and mechanical power are introduced to reflect thermal behavior more directly.
-    \item \textbf{Physics-constrained training:} the loss function is augmented so that training respects physically reasonable temperature behavior.
-    \item \textbf{Residual PIML formulation:} instead of learning temperature from scratch, the model learns the residual error beyond a physics estimate.
-    \item \textbf{Robust evaluation:} the model is tested not only on a standard split but also under unseen profiles and stress regimes.
-    \item \textbf{Quantitative proof of benefit:} the proposed models are shown to outperform both Random Forest and conventional DNN baselines in MAE, RMSE, and $R^2$.
+\item a profile-disjoint preprocessing and evaluation protocol;
+\item physics-derived electrical and mechanical features;
+\item trained and saved LSTM/state-space checkpoints;
+\item multi-step prediction up to 20 steps;
+\item unseen-profile and persistence-baseline evaluation;
+\item a working local Streamlit demonstration;
+\item saved-model SHAP global importance analysis;
+\item a modular 32-variant ablation and baseline evaluation runner;
+\item profile-cluster bootstrap, Wilcoxon-Holm/BH, Friedman-Nemenyi,
+Diebold--Mariano with capped HAC bandwidth, and Nadeau--Bengio analyses.
+\end{enumerate}
+The SHAP analysis ranks $P_{cu}$, motor speed, voltage magnitude, axis currents,
+and torque as important model inputs. This is physically plausible because
+current magnitude drives the assumed copper-loss term and speed/torque describe
+mechanical loading. SHAP importance indicates model sensitivity, not causal
+heat percentages.
+
+\section{Evidence That Prediction Is Still Wrong}
+The notebook contains direct evidence that long-term prediction is not yet
+reliable. On hard unseen profile 21, the observed temperature increases from
+approximately 27.6 $^{\circ}$C to 49.3 $^{\circ}$C over 500 samples while the
+stable thermal equation predicts only 29.6 $^{\circ}$C. The model trajectory is
+smooth, but it is too flat. In the same diagnostic, predicted absolute
+step-to-step change has maximum 0.062 $^{\circ}$C, whereas the measured maximum
+is 3.63 $^{\circ}$C. A smooth trajectory is therefore not sufficient evidence
+of physical correctness.
+
+The underlying reason is visible in the experiment: the model is asked to
+roll out future temperature while future operating inputs are held constant.
+In profile 21, the real copper loss changes slightly, but the accumulated
+thermal trajectory is not captured by a constant forcing term. In addition,
+the bounded $\tanh$ cooling law can saturate, preventing cooling from
+increasing proportionally with the temperature difference. Finally, the
+realtime website currently repeats a single snapshot 128 times. This differs
+from training, where each window contains a real sequence of 128 measurements.
+The resulting prediction can be an out-of-distribution response even when the
+slider values are numerically plausible.
+
+\section{Recommended Correction}
+Changing the model should not be the first intervention. The input interface
+must first match the training contract:
+\begin{enumerate}[leftmargin=1.5em]
+\item maintain a rolling buffer of the latest 128 synchronized sensor rows;
+\item compute the five engineered features using the same formulas and scaler;
+\item use the measured latest $T_{pm}$ as the initial state;
+\item pass future ambient and operating inputs when forecasting offline;
+\item for live deployment, explicitly state the future-input assumption;
+\item validate the website output against notebook predictions on identical
+windows before interpreting the dashboard.
 \end{enumerate}
 
-\section{Real-World Deployment Perspective}
-The practical use case is predictive maintenance. In a deployment system, live sensor data from a motor would be fed to the trained model, which would output a temperature estimate. That estimate can then be converted into an operational health label such as \emph{Healthy}, \emph{Warning}, or \emph{Critical}. This makes the work more than a benchmark exercise; it becomes a usable monitoring pipeline.
+For a practical realtime system, the input method should be changed from
+independent sliders to a CSV/live-stream buffer. Sliders are useful for a
+demonstration, but they cannot recreate thermal memory. The correct website
+design is a manual override mode plus a streaming mode that accepts 128 rows.
 
-\subsection{Why this is important}
-A model that predicts temperature accurately can trigger early intervention before thermal damage occurs. This can protect insulation, reduce downtime, and improve system reliability.
+\section{Should a Different Model Be Used?}
+Yes, but only after the input mismatch is corrected. The preferred next model
+is a direct multi-horizon LSTM or GRU that predicts the full 20-step trajectory
+from a 128-step history and receives a planned future operating sequence. A
+hybrid update may be written as
+\begin{equation}
+ T_{k+1}=T_k+\Delta T_{physics}(T_k,T_{a,k},P_{cu,k})
+             +r_k,
+\end{equation}
+where $r_k$ is learned and bounded. Unlike the present constant-forcing
+rollout, $P_{cu,k}$ and other known future inputs vary with $k$.
 
-\section{Limitations}
-The report should also be honest about what was not done.
-\begin{itemize}[leftmargin=1.5em]
-    \item The physics model is simplified and not a full finite-element thermal simulation.
-    \item Temporal sequence modeling was not fully exploited in the main pipeline.
-    \item The residual physics formulation could be extended further using LSTM or transformer-based sequence models.
-    \item Additional calibration against real deployment measurements would strengthen external validity.
-\end{itemize}
+The model-selection experiment should compare persistence, the existing
+adaptive LSTM, a direct multi-horizon LSTM/GRU, and the hybrid model under the
+same profile-disjoint splits. Selection should be based on 20-step and
+500-step trajectory MAE, not only one-step MAE or $R^2$. The current notebook
+already shows that the RQ4 residual model does not improve over the adaptive
+baseline on its reported 20-step validation result, so it should not currently
+be presented as the best model.
 
-\section{Future Work}
-Possible extensions include:
-\begin{itemize}[leftmargin=1.5em]
-    \item Physics-Informed LSTM for time-series thermal dynamics.
-    \item Uncertainty-aware deployment on embedded or edge hardware.
-    \item Digital twin integration for online thermal prediction.
-    \item Remaining Useful Life estimation using the same thermal features.
-    \item Fault diagnosis and anomaly detection using physics-informed embeddings.
-\end{itemize}
+\section{RUL and Deployment Claims}
+The available dataset contains no run-to-failure records, degradation labels,
+or validated failure threshold. Therefore, the current thermal-limit RUL
+output is a proxy defined as forecast steps until $T_{pm}$ reaches a configured
+limit. It is useful for a demonstration, but it is not empirical component-life
+RUL. A journal paper should either obtain ageing/run-to-failure data or rename
+the output to ``thermal-limit horizon'' and report its censoring rate.
+
+\section{Limitations and Reproducibility}
+The assumed copper resistance, simplified lumped thermal equation, constant
+future forcing in long rollouts, and target distinction between $T_{pm}$ and
+stator-winding temperature limit external validity. The source data are sampled
+at 2 Hz, so forecast steps correspond to 0.5 seconds each. The saved scaler was
+generated with a different scikit-learn version than the current environment,
+so the production environment should pin library versions and archive the exact
+preprocessing code.
+
+The realtime application is launched with:
+\begin{verbatim}
+streamlit run PMSM_EDSS/app.py
+\end{verbatim}
+The saved-model SHAP/RUL analysis is launched with:
+\begin{verbatim}
+python Explainability/shap_rul_analysis.py
+\end{verbatim}
 
 \section{Conclusion}
-This report presented a physics-informed machine learning framework for PMSM stator winding temperature prediction. The main technical contribution is the Residual PIML model, which combines a physics-based thermal estimate with neural residual correction. The experimental results show clear and consistent improvement over a Random Forest baseline and a conventional DNN baseline. The final model achieved MAE = 1.1719$^\circ$C, RMSE = 1.6336$^\circ$C, and $R^2$ = 0.9972, while also demonstrating strong behavior under unseen profiles and high-stress operating conditions.
+Through this work, I progressed beyond a preliminary regression experiment: I
+implemented profile-disjoint evaluation, recurrent physics-informed models,
+saved checkpoints, multi-step metrics, unseen-profile testing, explainability,
+a local demonstration, and a modular ablation/statistical evaluation pipeline.
+The current reduced-budget comparison identifies Ridge and direct recurrent
+models as important competitors to the adaptive thermal model, but the evidence
+does not establish robust superiority for any method. The study does not yet
+support validated long-term thermal digital-twin or component-RUL claims.
 
-The main scientific conclusion is that physics is not just a nice addition; it materially improves prediction quality, generalization, and robustness. That makes the approach more credible for real-world predictive maintenance than a data-only model.
+The main challenges were the limited physical labels, distinction between
+magnet and winding temperatures, long-horizon drift, and the initial website
+input that did not preserve thermal history. I addressed these challenges
+through profile-wise testing, physics-derived variables, bounded recurrent
+models, explicit ablation and baseline experiments, profile-level statistical
+tests, SHAP analysis, and a corrected CSV-history input mode in Streamlit. The
+next step is a nested grouped evaluation with a full training budget and a
+pre-specified forecast-input protocol.
+prediction and explainability goals while identifying the remaining work
+honestly.
+
+The next research milestone is clear: make the website consume a real rolling
+128-sample history, reproduce notebook predictions exactly, and retrain a
+multi-horizon model with time-varying future operating inputs. Only after that
+comparison should a new architecture be selected for publication.
 
 \begin{thebibliography}{00}
-\bibitem{piml_general} Physics-informed machine learning literature on hybrid modeling and domain-guided regression.
-\bibitem{pmsm} PMSM thermal modeling and temperature estimation references.
-\bibitem{randomforest} Classical machine learning baselines for tabular regression.
-\bibitem{shap} Explainable AI methods for feature attribution.
-\bibitem{dropout} Monte Carlo Dropout for uncertainty estimation.
+\bibitem{piml} G. E. Karniadakis et al., ``Physics-informed machine learning,''
+Nature Reviews Physics, vol. 3, pp. 422--440, 2021.
+\bibitem{shap} S. M. Lundberg and S.-I. Lee, ``A unified approach to interpreting
+model predictions,'' in Advances in Neural Information Processing Systems, 2017.
+\bibitem{pmsm} A. Boglietti et al., ``Thermal analysis of electrical machines
+working in automotive applications,'' IEEE Transactions on Industry
+Applications, 2006.
 \end{thebibliography}
-
 \end{document}
